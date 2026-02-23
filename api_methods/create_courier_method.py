@@ -1,5 +1,4 @@
 import requests
-import time
 
 from url import BASE_URL, CREATE_COURIER_ENDPOINT, LOGIN_COURIER_ENDPOINT
 
@@ -16,10 +15,9 @@ def create_courier(login: str, password: str, first_name: str) -> requests.Respo
     )
     return response
 
-def delete_courier(login: str, password: str = "1234") -> bool:
+def delete_courier(login: str, password: str) -> bool:
     """
-    Удаляет курьера по логину.
-    Использует пароль для авторизации (по умолчанию — '1234').
+    Удаляет курьера по логину и паролю.
     Возвращает True, если удаление прошло успешно.
     """
     auth_response = requests.post(
@@ -42,4 +40,4 @@ def cleanup_test_couriers(prefix: str):
     if response.status_code == 200:
         for courier in response.json():
             if courier.get("login", "").startswith(prefix):
-                delete_courier(courier["login"])
+                delete_courier(courier["login"], "1234")
