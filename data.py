@@ -1,5 +1,6 @@
 """Тестовые данные для API создания курьера."""
 
+
 # Базовые данные для заказа (без цвета)
 BASE_ORDER_PAYLOAD = {
     "firstName": "Naruto",
@@ -28,6 +29,7 @@ ORDER_WITHOUT_COLOR = BASE_ORDER_PAYLOAD
 LOGIN_PREFIX = "test_ninja_"
 DEFAULT_PASSWORD = "1234"
 DEFAULT_FIRST_NAME = "Sasuke"
+
 
 # Валидные данные для создания курьера
 VALID_COURIER = {
@@ -68,8 +70,34 @@ BOUNDARY_VALUES = {
     "firstName": "X" * 100 
 }
 
-# Сообщения об ошибках
+# Сообщения об ошибках (для создания учётной записи)
 ERROR_MESSAGES = {
-    "missing_data": "Недостаточно данных для создания учетной записи",
+    "missing_data": "Недостаточно данных для создания учётной записи",
     "duplicate_login": "Этот логин уже используется. Попробуйте другой."
-}   
+}
+
+# Сообщения об ошибках (для авторизации)
+AUTH_ERROR_MESSAGES = {
+    "missing_fields": "Недостаточно данных для входа",
+    "account_not_found": "Учетная запись не найдена"
+}
+
+# Ожидаемые статусы ответов
+EXPECTED_STATUS_CODES = {
+    "success": 200,
+    "bad_request": 400,
+    "not_found": 404
+}
+
+# Шаблоны сообщений для проверок статуса ответа
+STATUS_ERROR_MESSAGES = {
+    "success": "Ожидался статус {expected}, получен {actual}",
+    "bad_request": "Ожидался статус {expected}, получен {actual}",
+    "not_found": "Ожидался статус {expected}, получен {actual}"
+}
+
+# Сообщения для assert-проверкок в тестах
+ASSERT_MESSAGES = {
+    "missing_id": "В ответе отсутствует поле 'id'",
+    "invalid_id_type": "Поле 'id' должно быть целым числом"
+}
