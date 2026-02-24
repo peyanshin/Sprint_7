@@ -4,11 +4,11 @@ import requests
 
 from url import *
 from data import *
-from conftest import *
+from helpers import *
 
 
 @allure.feature("Создание курьера")
-@pytest.mark.usefixtures("setup_cleanup")
+@pytest.mark.usefixtures("created_courier")
 class TestCourierCreation:
 
     @allure.title("Успешное создание курьера с уникальным логином")
@@ -18,7 +18,10 @@ class TestCourierCreation:
         login, password = created_courier
 
         with allure.step(f"Проверяем, что курьер с login={login} существует и активен"):
-            auth_response = requests.post(f"{BASE_URL}{LOGIN_COURIER_ENDPOINT}", json={"login": login, "password": password})
+            auth_response = requests.post(
+                f"{BASE_URL}{LOGIN_COURIER_ENDPOINT}",
+                json={"login": login, "password": password}
+            )
             assert auth_response.status_code == 200, (f"Курьер не может авторизоваться: {auth_response.text}")
             assert "id" in auth_response.json(), ("В ответе отсутствует id курьера")
 
@@ -61,7 +64,7 @@ class TestCourierCreation:
             response = requests.post(f"{BASE_URL}{CREATE_COURIER_ENDPOINT}", json=json_data)
 
         with allure.step("Проверяем статус-код 201 и успешный ответ"):
-            assert response.status_code == 201, (f"Ожидался 201 (API допускает отсутствие firstName), "f"получен {response.status_code}: {response.text}")
+            assert response.status_code == 201, (f"Ожидался 201 (API допускает отсутствие firstName), получен {response.status_code}: {response.text}")
             assert response.json() == {"ok": True}, (f"Неверный ответ: {response.json()}")
 
     @allure.title("Пустые значения полей → ошибка 400")
@@ -84,7 +87,7 @@ class TestCourierCreation:
     def test_create_courier_boundary_values(self):
         with allure.step("Формируем запрос с граничными значениями"):
             json_data = generate_unique_data(BOUNDARY_VALUES)
-            json_data["login"] = generate_unique_login()  # Гарантируем уникальность
+            json_data["login"] = generate_unique_login()
 
         with allure.step("Отправляем запрос на создание курьера"):
             response = requests.post(f"{BASE_URL}{CREATE_COURIER_ENDPOINT}", json=json_data)
@@ -103,34 +106,54 @@ class TestCourierCreation:
         first_name = data["firstName"]
 
         with allure.step(f"Создаём первого курьера: login={login}"):
-            response1 = requests.post(
-                f"{BASE_URL}{CREATE_COURIER_ENDPOINT}",
-                json={
-                    "login": login,
-                    "password": password,
-                    "firstName": first_name
-                }
-            )
+            response1 = create_courier(login, password, first_name)
             assert response1.status_code == 201, (
                 f"Первый курьер не создан: {response1.text}"
             )
 
         with allure.step(f"Повторяем запрос с тем же логином: {login} → ожидаем 409"):
-            response2 = requests.post(
-                f"{BASE_URL}{CREATE_COURIER_ENDPOINT}",
-                json={
-                    "login": login,
-                    "password": password,
-                    "firstName": first_name
-                }
-            )
+            response2 = create_courier(login, password, first_name)
 
         with allure.step("Проверяем статус-код 409 и сообщение об ошибке"):
-            assert response2.status_code == 409, (f"Ожидался 409 (конфликт из‑за дублирующего логина), "f"получен {response2.status_code}: {response2.text}")
+            assert response2.status_code == 409, (f"Ожидался 409 (конфликт из‑за дублирующего логина), получен {response2.status_code}: {response2.text}")
             expected_message = ERROR_MESSAGES["duplicate_login"]
-            assert expected_message in response2.json().get("message", ""), (f"Неверное сообщение об ошибке. Ожидалось: '{expected_message}', "f"получено: {response2.json().get('message', 'отсутствует')}")
+            assert expected_message in response2.json().get("message", ""), (
+                f"Неверное сообщение об ошибке. Ожидалось: '{expected_message}', получено: {response2.json().get('message', 'отсутствует')}"
+            )
 
         with allure.step("Проверяем, что в системе остался только один курьер с данным логином"):
-            auth_response = requests.post(f"{BASE_URL}{LOGIN_COURIER_ENDPOINT}", json={"login": login, "password": password})
-            assert auth_response.status_code == 200, (f"Курьер с login={login} не найден после проверки конфликта")
-            assert "id" in auth_response.json(), "В ответе авторизации отсутствует id курьера"
+            auth_response = requests.post(
+                f"{BASE_URL}{LOGIN_COURIER_ENDPOINT}",
+                json={"login": login, "password": password}
+            )
+            assert auth_response.status_code == 200, (
+                f"Курьер с login={login} не найден после проверки конфликта: {auth_response.text}"
+            )
+            assert "id" in auth_response.json(), (
+                "В ответе авторизации отсутствует id курьера"
+            )
+            courier_id = auth_response.json()["id"]
+            assert isinstance(courier_id, int) and courier_id > 0, (
+                f"Некорректный id курьера: {courier_id}"
+            )
+
+        with allure.step("Дополнительно проверяем, что повторный запрос не создал дубликат"):
+            response3 = create_courier(login, password, first_name)
+            assert response3.status_code == 409, (
+                f"Ожидался 409 при повторной попытке создания, получен {response3.status_code}: {response3.text}"
+            )
+            assert expected_message in response3.json().get("message", ""), (
+                f"Сообщение об ошибке не соответствует ожидаемому при повторной проверке: {response3.json().get('message', 'отсутствует')}"
+            )
+
+        with allure.step("Проверяем, что количество курьеров с данным логином не увеличилось"):
+            second_auth_response = requests.post(
+                f"{BASE_URL}{LOGIN_COURIER_ENDPOINT}",
+                json={"login": login, "password": password}
+            )
+            assert second_auth_response.status_code == 200, (
+                f"Курьер стал недоступен после повторных проверок: {second_auth_response.text}"
+            )
+            assert second_auth_response.json().get("id") == courier_id, (
+                "ID курьера изменился после повторных запросов — возможный признак дублирования"
+            )
